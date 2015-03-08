@@ -32,7 +32,7 @@ class LdapUser implements Authenticatable
      */
     public function getAuthIdentifier()
     {
-        return $this->attributes['username'];
+        return $this->attributes['name'];
     }
 
     /**

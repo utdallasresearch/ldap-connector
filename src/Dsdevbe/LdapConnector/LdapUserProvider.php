@@ -33,13 +33,13 @@ class LdapUserProvider implements UserProviderInterface {
     public function retrieveById($identifier)
     {
         $userInfo = $this->adldap->user()->info($identifier, array('*'))[0];
-		
-		$credentials = array();
-		$credentials['username'] = $identifier;
-		
-		foreach($userInfo as $key => $value){
-			$credentials[$key] = $value[0];
-		}
+        
+        $credentials = array();
+        $credentials['name'] = $identifier;
+        
+        foreach($userInfo as $key => $value){
+            $credentials[$key] = $value[0];
+        }
 
         return new LdapUser($credentials);
     }
@@ -73,8 +73,11 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByCredentials(array $credentials)
     {
-        if ($this->adldap->authenticate($credentials['username'], $credentials['password'])) {
-            $userInfo = $this->adldap->user()->info($credentials['username'], array('*'))[0];
+        $name = $credentials['name'];
+        $password = $credentials['password'];
+        $dn = $this->adldap->user()->dn($name);
+        if ($this->adldap->authenticate($dn, $password)) {
+            $userInfo = $this->adldap->user()->info($credentials['name'], array('*'))[0];
 
             foreach($userInfo as $key => $value){
                 $credentials[$key] = $value[0];
@@ -86,10 +89,11 @@ class LdapUserProvider implements UserProviderInterface {
 
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
-        $username = $credentials['username'];
+        $name = $credentials['name'];
         $password = $credentials['password'];
+        $dn = $this->adldap->user()->dn($name);
 
-        return $this->adldap->authenticate($username, $password);
+        return $this->adldap->authenticate($dn, $password);
     }
 
 }
