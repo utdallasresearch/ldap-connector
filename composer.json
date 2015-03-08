@@ -14,6 +14,12 @@
             "email": "dens.sascha@gmail.com"
         }
     ],
+    "repositories": [
+        {
+            "url": "https://github.com/wunc/adLDAP",
+            "type": "git"
+        }
+    ],
     "require": {
         "php": ">=5.3.0",
         "laravel/framework": "~5.0",
