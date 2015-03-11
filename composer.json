@@ -1,5 +1,5 @@
 {
-    "name": "wunc/ldap-connector",
+    "name": "utdallasresearch/ldap-connector",
     "description": "Easily authenticate with LDAP in Laravel",
     "homepage": "https://github.com/wunc/ldap-connector",
     "keywords": ["Laravel", "Ldap"],
@@ -16,14 +16,14 @@
     ],
     "repositories": [
         {
-            "url": "https://github.com/wunc/adLDAP",
+            "url": "https://github.com/utdallasresearch/adLDAP",
             "type": "git"
         }
     ],
     "require": {
         "php": ">=5.3.0",
         "laravel/framework": "~5.0",
-        "wunc/adldap": "~4.0"
+        "utdallasresearch/adldap": "dev-master"
     },
     "autoload": {
         "psr-0": {
