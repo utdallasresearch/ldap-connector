@@ -69,18 +69,6 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveById($identifier)
     {
-        /*        
-        $userInfo = $this->adldap->user()->info($identifier, array('*'))[0];
-
-        $credentials = array();
-        $credentials['netid'] = $identifier;
-        
-        foreach($userInfo as $key => $value){
-            $credentials[$key] = $value[0];
-        }
-
-        return new LdapUser($credentials);
-        */
         return User::find($identifier);
     }
 
@@ -93,7 +81,12 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByToken($identifier, $token)
     {
-        // TODO: Implement retrieveByToken() method.
+        $model = new User();
+
+        return $model->newQuery()
+                        ->where($model->getKeyName(), $identifier)
+                        ->where($model->getRememberTokenName(), $token)
+                        ->first();
     }
 
     /**
@@ -102,7 +95,9 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function updateRememberToken(Authenticatable $user, $token)
     {
-        // TODO: Implement updateRememberToken() method.
+        $user->setRememberToken($token);
+
+        $user->save();
     }
 
     /**
@@ -113,32 +108,51 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByCredentials(array $credentials)
     {
-        $name = $credentials['name'];
-        $password = $credentials['password'];
-        $dn = $this->adldap->user()->dn($name);
+        $distinguishedName = $this->adldap->user()->dn($credentials['name']);
 
-        if ($this->adldap->authenticate($dn, $password)) {
-            $user = User::where('name','=',$name);
-            if ($user->exists()) {
-                $existinguser = $user->first();
-                if ($this->roleRefresh) $this->setRoles($existinguser);
-                return $existinguser;
-            }
-            else {
-                $ldapAttributes = isset($this->attributeMap) ? array_keys($this->attributeMap) : ['*'];
-                array_push($ldapAttributes, $this->ldapRole);
-                $userInfo = $this->adldap->user()->info($credentials['name'], $ldapAttributes)[0];
-
-                foreach($userInfo as $key => $value){
-                    $credentials[$key] = $value[0];
-                }
-                $credentials = $this->modCredentials($credentials);
-                $newuser = new User($credentials);
-                $newuser->save();
-                $this->setRoles($newuser);
-                return $newuser;
-            }
+        if ($this->adldap->authenticate($distinguishedName, $credentials['password'])) {
+            return $this->existingOrNew($credentials);
         }
+    }
+
+    /**
+     * Return either an existing user with the given credentials
+     * or create a new user with those credentials.
+     * @param  array  $credentials
+     * @return User
+     */
+    public function existingOrNew(array $credentials)
+    {
+        $user = User::where('name','=',$credentials['name']);
+        if ($user->exists()) {
+            $existinguser = $user->first();
+            if ($this->roleRefresh) $this->setRoles($existinguser);
+            return $existinguser;
+        }
+        else {
+            return $this->createNewUser($credentials);
+        }
+    }
+
+    /**
+     * Create a new User with the given credentials
+     * @param  array  $credentials
+     * @return User
+     */
+    public function createNewUser(array $credentials)
+    {
+        $ldapAttributes = isset($this->attributeMap) ? array_keys($this->attributeMap) : ['*'];
+        array_push($ldapAttributes, $this->ldapRole);
+        $userInfo = $this->adldap->user()->info($credentials['name'], $ldapAttributes)[0];
+
+        foreach($userInfo as $key => $value){
+            $credentials[$key] = $value[0];
+        }
+        $credentials = $this->modCredentials($credentials);
+        $newuser = new User($credentials);
+        $newuser->save();
+        $this->setRoles($newuser);
+        return $newuser;
     }
 
     /**
@@ -192,11 +206,9 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
-        $name = $credentials['name'];
-        $password = $credentials['password'];
-        $dn = $this->adldap->user()->dn($name);
+        $distinguishedName = $this->adldap->user()->dn($credentials['name']);
 
-        return $this->adldap->authenticate($dn, $password);
+        return $this->adldap->authenticate($distinguishedName, $credentials['password']);
     }
 
 }
