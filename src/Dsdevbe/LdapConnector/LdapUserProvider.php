@@ -15,6 +15,36 @@ class LdapUserProvider implements UserProviderInterface {
     protected $adldap;
 
     /**
+     * Stores the mapping of LDAP Attributes => User Model fields
+     * @var array
+     */
+    protected $attributeMap;
+    
+    /**
+     * Defines an LDAP user attribute for which to save only the part before the @
+     * @var string
+     */
+    protected $emailPartial;
+
+    /**
+     * The Entrust user roles that will be set
+     * @var string
+     */
+    protected $ldapRole;
+
+    /**
+     * Stores the mapping of LDAP roles => Entrust Role::name
+     * @var [type]
+     */
+    protected $roleMap;
+
+    /**
+     * Should we sync Entrust roles to LDAP roles on login?
+     * @var boolean
+     */
+    protected $roleRefresh = false;
+
+    /**
      * Creates a new LdapUserProvider and connect to Ldap
      *
      * @param array $config
@@ -22,6 +52,12 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function __construct($config)
     {
+        if (array_key_exists('attribute_map', $config)) $this->attributeMap = $config['attribute_map'];
+        if (array_key_exists('email_partial', $config)) $this->emailPartial = $config['email_partial'];
+        if (array_key_exists('role_attribute', $config)) $this->ldapRole = strtolower($config['role_attribute']);
+        if (array_key_exists('role_map', $config)) $this->roleMap = $config['role_map'];
+        if (array_key_exists('role_refresh', $config)) $this->roleRefresh = $config['role_refresh'];
+
         $this->adldap = new adLDAP($config);
     }
 
@@ -80,41 +116,80 @@ class LdapUserProvider implements UserProviderInterface {
         $name = $credentials['name'];
         $password = $credentials['password'];
         $dn = $this->adldap->user()->dn($name);
+
         if ($this->adldap->authenticate($dn, $password)) {
-            $userInfo = $this->adldap->user()->info($credentials['name'], array('mail','cn'))[0];
-
-            foreach($userInfo as $key => $value){
-                $credentials[$key] = $value[0];
-            }
-
             $user = User::where('name','=',$name);
             if ($user->exists()) {
-                return $user->first();
+                $existinguser = $user->first();
+                if ($this->roleRefresh) $this->setRoles($existinguser);
+                return $existinguser;
             }
             else {
-                if (array_key_exists('mail',$credentials)) {
-                    $credentials['email'] = $credentials['mail'];
-                } else {
-                    $credentials['email'] = 'email_not_found';
+                $ldapAttributes = isset($this->attributeMap) ? array_keys($this->attributeMap) : ['*'];
+                array_push($ldapAttributes, $this->ldapRole);
+                $userInfo = $this->adldap->user()->info($credentials['name'], $ldapAttributes)[0];
+
+                foreach($userInfo as $key => $value){
+                    $credentials[$key] = $value[0];
                 }
-                if (array_key_exists('cn',$credentials)) {
-                    $credentials['display_name'] = $credentials['cn'];
-                } else {
-                    $credentials['display_name'] = 'name_not_found';
-                }
-                if (array_key_exists('password',$credentials)) {
-                    $credentials['password'] = bcrypt($credentials['password']);
-                } else {
-                    $credentials['password'] = 'password_not_found';
-                }
+                $credentials = $this->modCredentials($credentials);
                 $newuser = new User($credentials);
                 $newuser->save();
+                $this->setRoles($newuser);
                 return $newuser;
             }
-            //return new LdapUser($credentials);
         }
     }
 
+    /**
+     * Modify the credential keys/values based on any config settings
+     * @param  array  $credentials
+     * @return array  with keys corrected to those in attributeMap
+     */
+    public function modCredentials(array $credentials) {
+        if (isset($this->emailPartial)) {
+            $credentials[$this->emailPartial] = strstr($credentials[$this->emailPartial], '@', true);
+        }
+        if (isset($this->attributeMap)) {
+            foreach ($this->attributeMap as $ldapAttribute => $userField) {
+                if (array_key_exists($ldapAttribute,$credentials)) {
+                    $credentials[$userField] = $credentials[$ldapAttribute];
+                }
+            }
+        }
+        return $credentials;
+    }
+
+    /**
+     * Syncs the roles in the LDAP for the user to the Entrust roles.
+     * Only changes those roles listed in roleMap.
+     * @param User $user [description]
+     */
+    public function setRoles(User $user) {
+        if (isset($this->ldapRole) && isset($this->roleMap)) {
+            $userInfo = $this->adldap->user()->info($user->name, [$this->ldapRole])[0];
+            $userRolesFromLdap = array_slice($userInfo[$this->ldapRole],1);
+            foreach ($this->roleMap as $role => $entrust_role) {
+                $userHasRole = User::find($user->id)->hasRole($entrust_role);
+                $has = $userHasRole ? 'true':'false';
+                $ldapHasRole = in_array($role,$userRolesFromLdap);
+                $entrust_role = \App\Role::where('name','=',$entrust_role)->first();
+                if ($userHasRole && !$ldapHasRole) {
+                    $user->detachRole($entrust_role);
+                }
+                if (!$userHasRole && $ldapHasRole) {
+                    $user->attachRole($entrust_role);
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate User credentials
+     * @param  Authenticatable $user        
+     * @param  array           $credentials 
+     * @return boolean
+     */
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
         $name = $credentials['name'];
