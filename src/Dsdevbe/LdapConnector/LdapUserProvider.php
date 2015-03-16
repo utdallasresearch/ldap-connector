@@ -15,6 +15,19 @@ class LdapUserProvider implements UserProviderInterface {
     protected $adldap;
 
     /**
+     * The key in the login form POST data used as username
+     * (like 'email','name','username', and etc.)
+     * @var string
+     */
+    protected $loginKey = 'email';
+
+    /**
+     * The key in the login form POST data used as password
+     * @var string
+     */
+    protected $passKey = 'password';
+
+    /**
      * Stores the mapping of LDAP Attributes => User Model fields
      * @var array
      */
@@ -52,6 +65,8 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function __construct($config)
     {
+        if (array_key_exists('login_key', $config)) $this->loginKey = $config['login_key'];
+        if (array_key_exists('password_key', $config)) $this->passKey = $config['password_key'];
         if (array_key_exists('attribute_map', $config)) $this->attributeMap = $config['attribute_map'];
         if (array_key_exists('email_partial', $config)) $this->emailPartial = $config['email_partial'];
         if (array_key_exists('role_attribute', $config)) $this->ldapRole = strtolower($config['role_attribute']);
@@ -108,9 +123,9 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByCredentials(array $credentials)
     {
-        $distinguishedName = $this->adldap->user()->dn($credentials['name']);
+        $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
 
-        if ($this->adldap->authenticate($distinguishedName, $credentials['password'])) {
+        if ($this->adldap->authenticate($distinguishedName, $credentials[$this->passKey])) {
             return $this->existingOrNew($credentials);
         }
     }
@@ -123,7 +138,7 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function existingOrNew(array $credentials)
     {
-        $user = User::where('name','=',$credentials['name']);
+        $user = User::where($this->loginKey,'=',$credentials[$this->loginKey]);
         if ($user->exists()) {
             $existinguser = $user->first();
             if ($this->roleRefresh) $this->setRoles($existinguser);
@@ -143,7 +158,7 @@ class LdapUserProvider implements UserProviderInterface {
     {
         $ldapAttributes = isset($this->attributeMap) ? array_keys($this->attributeMap) : ['*'];
         array_push($ldapAttributes, $this->ldapRole);
-        $userInfo = $this->adldap->user()->info($credentials['name'], $ldapAttributes)[0];
+        $userInfo = $this->adldap->user()->info($credentials[$this->loginKey], $ldapAttributes)[0];
 
         foreach($userInfo as $key => $value){
             $credentials[$key] = $value[0];
@@ -185,7 +200,6 @@ class LdapUserProvider implements UserProviderInterface {
             $userRolesFromLdap = array_slice($userInfo[$this->ldapRole],1);
             foreach ($this->roleMap as $role => $entrust_role) {
                 $userHasRole = User::find($user->id)->hasRole($entrust_role);
-                $has = $userHasRole ? 'true':'false';
                 $ldapHasRole = in_array($role,$userRolesFromLdap);
                 $entrust_role = \App\Role::where('name','=',$entrust_role)->first();
                 if ($userHasRole && !$ldapHasRole) {
@@ -206,9 +220,9 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
-        $distinguishedName = $this->adldap->user()->dn($credentials['name']);
+        $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
 
-        return $this->adldap->authenticate($distinguishedName, $credentials['password']);
+        return $this->adldap->authenticate($distinguishedName, $credentials[$this->passKey]);
     }
 
 }
