@@ -35,7 +35,7 @@ Provides a solution for LDAP authentication of users in Laravel 5.0.x. It uses a
     ```php
     'driver' => 'ldap',
     ```
-1. Create a new configuration file `ldap.php` in the configuration folder of Laravel `app/config/ldap.php` and modify to your needs. For more detail of the configuration you can always check on [ADLAP documentation](https://github.com/adldap/adLDAP/wiki/adLDAP-Developer-API-Reference). Most of the available options are briefly documented below. Comment-out any options that you don't need, and they won't be used.
+1. Create a new configuration file `ldap.php` in the configuration folder of Laravel `app/config/ldap.php` and modify to your needs. For more detail of the configuration you can always check the [adDLAP documentation](https://github.com/adldap/adLDAP/wiki/adLDAP-Developer-API-Reference). Most of the available options are briefly documented below. Comment-out any options that you don't need, and they won't be used.
     
     ```php
     return array(
@@ -63,7 +63,7 @@ Provides a solution for LDAP authentication of users in Laravel 5.0.x. It uses a
         /************************************
         * LDAP-Laravel Configuration Options
         *************************************/
-        'login_key' => 'name',          // the key in the login form POST data used as username
+        'login_key' => 'email',          // the key in the login form POST data used as username
         'password_key' => 'password',   // the key in the login form POST data used as password
 
         'attribute_map' => array(   // Map LDAP attribute => User Model field
@@ -78,7 +78,7 @@ Provides a solution for LDAP authentication of users in Laravel 5.0.x. It uses a
 
         'email_partial' => 'mail',  // Saves the specified LDAP attribute as the part before the @
 
-        'role_attribute' => 'personAffiliation',   // Set Entrust roles using specified LDAP attribute
+        'role_attribute' => 'memberOf',   // Set Entrust roles using specified LDAP attribute
 
         'role_map' => array(    // Map LDAP attribute values to Entrust role names
             'staff' => 'staff',

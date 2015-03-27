@@ -131,6 +131,27 @@ class LdapUserProvider implements UserProviderInterface {
     }
 
     /**
+     * Retreive an array of users that match the search criteria.
+     * 
+     * @param  array      $searchFor keyed 'search-field'=>'search-value'
+     * @param  array|null $fields    LDAP fields to return along with each user result
+     * @return array|false
+     */
+    public function findLdapUsers(array $searchFor, array $fields = null)
+    {
+        if (array_key_exists('displayname',$searchFor)) {
+            $users = $this->adldap->user()->findDetailed('displayname',$searchFor['displayname'],$fields);
+            $result = [];
+            return $users;
+            foreach ($users as $uid => $displayname) {
+                array_push($result,['uid' => $uid, 'displayname' => $displayname]);
+            }
+            return $result;
+        }
+        return false;
+    }
+    
+    /**
      * Return either an existing user with the given credentials
      * or create a new user with those credentials.
      * @param  array  $credentials
