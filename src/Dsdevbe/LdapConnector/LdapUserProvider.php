@@ -141,12 +141,7 @@ class LdapUserProvider implements UserProviderInterface {
     {
         if (array_key_exists('displayname',$searchFor)) {
             $users = $this->adldap->user()->findDetailed('displayname',$searchFor['displayname'],$fields);
-            $result = [];
             return $users;
-            foreach ($users as $uid => $displayname) {
-                array_push($result,['uid' => $uid, 'displayname' => $displayname]);
-            }
-            return $result;
         }
         return false;
     }
