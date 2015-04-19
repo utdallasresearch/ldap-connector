@@ -18,12 +18,13 @@
     "require": {
         "php": ">=5.3.0",
         "laravel/framework": "~5.0",
-        "adldap2/adldap2": "5.0.*@dev"
+        "adldap2/adldap2": "^5.0@dev"
     },
     "autoload": {
         "psr-0": {
             "Dsdevbe\\LdapConnector\\": "src/"
         }
     },
-    "prefer-stable": true
+    "prefer-stable": true,
+    "minimum-stability": "dev"
 }
