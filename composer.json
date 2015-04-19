@@ -7,23 +7,18 @@
     "authors": [
         {
             "name": "WunC",
-            "role": "Developer"
+            "role": "Developer",
+            "email": "wun@utdallas.edu"
         },
         {
             "name": "Dsdevbe",
             "email": "dens.sascha@gmail.com"
         }
     ],
-    "repositories": [
-        {
-            "url": "https://github.com/utdallasresearch/adLDAP",
-            "type": "git"
-        }
-    ],
     "require": {
         "php": ">=5.3.0",
         "laravel/framework": "~5.0",
-        "utdallasresearch/adldap": "~4.0"
+        "adldap2/adldap2": "dev-master"
     },
     "autoload": {
         "psr-0": {
