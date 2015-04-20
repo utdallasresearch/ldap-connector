@@ -1,7 +1,7 @@
 <?php namespace Dsdevbe\LdapConnector;
 
 use App\User;
-use adLDAP\adLDAP;
+use Adldap\Adldap;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider as UserProviderInterface;
 
@@ -12,7 +12,7 @@ class LdapUserProvider implements UserProviderInterface {
      *
      * @var adLDAP
      */
-    protected $adldap;
+    public $adldap; // TEMPORARY FOR TESTING!! Change to private for production!!! TBD
 
     /**
      * The key in the login form POST data used as username
@@ -73,7 +73,7 @@ class LdapUserProvider implements UserProviderInterface {
         if (array_key_exists('role_map', $config)) $this->roleMap = $config['role_map'];
         if (array_key_exists('role_refresh', $config)) $this->roleRefresh = $config['role_refresh'];
 
-        $this->adldap = new adLDAP($config);
+        $this->adldap = new Adldap($config);
     }
 
     /**
@@ -124,7 +124,6 @@ class LdapUserProvider implements UserProviderInterface {
     public function retrieveByCredentials(array $credentials)
     {
         $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
-
         if ($this->adldap->authenticate($distinguishedName, $credentials[$this->passKey])) {
             return $this->existingOrNew($credentials);
         }
