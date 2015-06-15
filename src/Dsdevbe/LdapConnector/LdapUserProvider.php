@@ -58,6 +58,12 @@ class LdapUserProvider implements UserProviderInterface {
     protected $roleRefresh = false;
 
     /**
+     * Should we auto-connect to the server on construct?
+     * @var boolean
+     */
+    protected $autoConnect = true;
+
+    /**
      * Creates a new LdapUserProvider and connect to Ldap
      *
      * @param array $config
@@ -72,8 +78,23 @@ class LdapUserProvider implements UserProviderInterface {
         if (array_key_exists('role_attribute', $config)) $this->ldapRole = strtolower($config['role_attribute']);
         if (array_key_exists('role_map', $config)) $this->roleMap = $config['role_map'];
         if (array_key_exists('role_refresh', $config)) $this->roleRefresh = $config['role_refresh'];
+        if (array_key_exists('auto_connect', $config)) $this->autoConnect = $config['auto_connect'];
 
-        $this->adldap = new adLDAP($config);
+        $this->adldap = new adLDAP($config, $this->autoConnect);
+    }
+
+    public function connect()
+    {
+        if (!$this->autoConnect) {
+            $this->adldap->connect();
+        }
+    }
+
+    public function close()
+    {
+        if (!$this->autoConnect) {
+            $this->adldap->close();
+        }
     }
 
     /**
@@ -123,11 +144,15 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByCredentials(array $credentials)
     {
+        $this->connect();
         $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
 
         if ($this->adldap->authenticate($distinguishedName, $credentials[$this->passKey])) {
-            return $this->existingOrNew($credentials);
+            $user = $this->existingOrNew($credentials);
+            $this->close();
+            return $user;
         }
+        $this->close();
     }
 
     /**
@@ -139,10 +164,13 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function findLdapUsers(array $searchFor, array $fields = null)
     {
+        $this->connect();
         if (array_key_exists('displayname',$searchFor)) {
             $users = $this->adldap->user()->findDetailed('displayname',$searchFor['displayname'],$fields);
+            $this->close();
             return $users;
         }
+        $this->close();
         return false;
     }
     
@@ -236,9 +264,11 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
+        $this->connect();
         $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
-
-        return $this->adldap->authenticate($distinguishedName, $credentials[$this->passKey]);
+        $valid = $this->adldap->authenticate($distinguishedName, $credentials[$this->passKey]);
+        $this->close();
+        return $valid;
     }
 
 }
