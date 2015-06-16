@@ -63,6 +63,8 @@ Provides a solution for LDAP authentication of users in Laravel 5.0.x. It uses a
         /************************************
         * LDAP-Laravel Configuration Options
         *************************************/
+        'user_model' => '\App\User',    // the fully-qualified name of your user model
+
         'login_key' => 'email',          // the key in the login form POST data used as username
         'password_key' => 'password',   // the key in the login form POST data used as password
 
@@ -98,7 +100,18 @@ Provides a solution for LDAP authentication of users in Laravel 5.0.x. It uses a
 	'Dsdevbe\LdapConnector\LdapConnectorServiceProvider'
 	```
 
-1. Make sure you have a `User` model in the App namespace (`app/User.php`). A Laravel 5 install with default scaffolding includes one that works great with this package.
+1. Make sure you have a valid `User` model (such as `app/User.php`). A Laravel 5 install with default scaffolding includes one that works great with this package. If you are using your own user model, you can specify its name in the 'user_model' configuration setting. Your model must implement Laravel's `Authenticatable` contract in order to work with this package.
+
+    ```php
+    namespace App;
+    use Illuminate\Auth\Authenticatable;
+    use Illuminate\Database\Eloquent\Model;
+    use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+
+    class User extends Model implements AuthenticatableContract {
+        use Authenticatable;
+    }
+    ```
 
 1. If you want to save LDAP attributes into your local user database, create a migration to add the relevant LDAP attributes to your database as User fields. The mapping of LDAP attribute to User-model fields is defined as above in the `attribute_map` configuration option, but these fields still need to exist first in the schema.
 
@@ -159,7 +172,7 @@ if (Auth::attempt(array('name' => $name, 'password' => $password)))
 You can find more examples on [Laravel Auth Documentation](http://laravel.com/docs/master/authentication) on using the `Auth::` function.
 
 ### Login with Username Instead of Email
-In a vanilla Laravel 5.0 install, the included user model and associated database migration has a 'name' and 'email' field with a default included view for 'email'-based login. If you prefer to login via 'name' (if that is more appropriate for your particular LDAP-based login), edit the resources/views/auth/login.blade.php and modify the form appropriately. You will also have to override the postLogin() method from the trait included in `app/Http/Controllers/Auth/AuthController.php` to have it look for 'name' instead of 'email' in the request.
+In a vanilla Laravel 5.0 install, the included user model and associated database migration has a 'name' and 'email' field with a default included view for 'email'-based login. If you prefer to login via 'name' (if that is more appropriate for your particular LDAP-based login), edit the `resources/views/auth/login.blade.php` and modify the form appropriately. You will also have to override the `postLogin()` method from the trait included in `app/Http/Controllers/Auth/AuthController.php` to have it look for 'name' instead of 'email' in the request.
 
 ```php
 /**

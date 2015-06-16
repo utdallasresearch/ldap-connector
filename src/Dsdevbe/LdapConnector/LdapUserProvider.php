@@ -1,6 +1,5 @@
 <?php namespace Dsdevbe\LdapConnector;
 
-use App\User;
 use adLDAP\adLDAP;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider as UserProviderInterface;
@@ -64,6 +63,12 @@ class LdapUserProvider implements UserProviderInterface {
     protected $autoConnect = true;
 
     /**
+     * Defines the user model name
+     * @var string
+     */
+    protected $userModel = '\App\User';
+
+    /**
      * Creates a new LdapUserProvider and connect to Ldap
      *
      * @param array $config
@@ -79,6 +84,7 @@ class LdapUserProvider implements UserProviderInterface {
         if (array_key_exists('role_map', $config)) $this->roleMap = $config['role_map'];
         if (array_key_exists('role_refresh', $config)) $this->roleRefresh = $config['role_refresh'];
         if (array_key_exists('auto_connect', $config)) $this->autoConnect = $config['auto_connect'];
+        if (array_key_exists('user_model', $config)) $this->userModel = $config['user_model'];
 
         $this->adldap = new adLDAP($config, $this->autoConnect);
     }
@@ -105,7 +111,8 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveById($identifier)
     {
-        return User::find($identifier);
+        $userModel = $this->userModel;
+        return $userModel::find($identifier);
     }
 
     /**
@@ -117,7 +124,8 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function retrieveByToken($identifier, $token)
     {
-        $model = new User();
+        $userModel = $this->userModel;
+        $model = new $userModel();
 
         return $model->newQuery()
                         ->where($model->getKeyName(), $identifier)
@@ -182,7 +190,8 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function existingOrNew(array $credentials)
     {
-        $user = User::where($this->loginKey,'=',$credentials[$this->loginKey]);
+        $userModel = $this->userModel;
+        $user = $userModel::where($this->loginKey,'=',$credentials[$this->loginKey]);
         if ($user->exists()) {
             $existinguser = $user->first();
             if ($this->roleRefresh) $this->setRoles($existinguser);
@@ -208,7 +217,8 @@ class LdapUserProvider implements UserProviderInterface {
             $credentials[$key] = $value[0];
         }
         $credentials = $this->modCredentials($credentials);
-        $newuser = new User($credentials);
+        $userModel = $this->userModel;
+        $newuser = new $userModel($credentials);
         $newuser->save();
         $this->setRoles($newuser);
         return $newuser;
@@ -236,14 +246,15 @@ class LdapUserProvider implements UserProviderInterface {
     /**
      * Syncs the roles in the LDAP for the user to the Entrust roles.
      * Only changes those roles listed in roleMap.
-     * @param User $user [description]
+     * @param Authenticatable $user
      */
-    public function setRoles(User $user) {
+    public function setRoles(Authenticatable $user) {
         if (isset($this->ldapRole) && isset($this->roleMap)) {
             $userInfo = $this->adldap->user()->info($user->name, [$this->ldapRole])[0];
             $userRolesFromLdap = array_slice($userInfo[$this->ldapRole],1);
+            $userModel = $this->userModel;
             foreach ($this->roleMap as $role => $entrust_role) {
-                $userHasRole = User::find($user->id)->hasRole($entrust_role);
+                $userHasRole = $userModel::find($user->id)->hasRole($entrust_role);
                 $ldapHasRole = in_array($role,$userRolesFromLdap);
                 $entrust_role = \App\Role::where('name','=',$entrust_role)->first();
                 if ($userHasRole && !$ldapHasRole) {
