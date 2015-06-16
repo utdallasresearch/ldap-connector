@@ -96,7 +96,7 @@ class LdapUserProvider implements UserProviderInterface {
         }
     }
 
-    public function close()
+    public function disconnect()
     {
         if (!$this->autoConnect) {
             $this->adldap->close();
@@ -157,10 +157,10 @@ class LdapUserProvider implements UserProviderInterface {
 
         if ($this->adldap->authenticate($distinguishedName, $credentials[$this->passKey])) {
             $user = $this->existingOrNew($credentials);
-            $this->close();
+            $this->disconnect();
             return $user;
         }
-        $this->close();
+        $this->disconnect();
     }
 
     /**
@@ -175,10 +175,10 @@ class LdapUserProvider implements UserProviderInterface {
         $this->connect();
         if (array_key_exists('displayname',$searchFor)) {
             $users = $this->adldap->user()->findDetailed('displayname',$searchFor['displayname'],$fields);
-            $this->close();
+            $this->disconnect();
             return $users;
         }
-        $this->close();
+        $this->disconnect();
         return false;
     }
     
@@ -211,7 +211,9 @@ class LdapUserProvider implements UserProviderInterface {
     {
         $ldapAttributes = isset($this->attributeMap) ? array_keys($this->attributeMap) : ['*'];
         array_push($ldapAttributes, $this->ldapRole);
+        $this->connect();
         $userInfo = $this->adldap->user()->info($credentials[$this->loginKey], $ldapAttributes)[0];
+        $this->disconnect();
 
         foreach($userInfo as $key => $value){
             $credentials[$key] = $value[0];
@@ -250,7 +252,9 @@ class LdapUserProvider implements UserProviderInterface {
      */
     public function setRoles(Authenticatable $user) {
         if (isset($this->ldapRole) && isset($this->roleMap)) {
+            $this->connect();
             $userInfo = $this->adldap->user()->info($user->name, [$this->ldapRole])[0];
+            $this->disconnect();
             $userRolesFromLdap = array_slice($userInfo[$this->ldapRole],1);
             $userModel = $this->userModel;
             foreach ($this->roleMap as $role => $entrust_role) {
@@ -278,7 +282,7 @@ class LdapUserProvider implements UserProviderInterface {
         $this->connect();
         $distinguishedName = $this->adldap->user()->dn($credentials[$this->loginKey]);
         $valid = $this->adldap->authenticate($distinguishedName, $credentials[$this->passKey]);
-        $this->close();
+        $this->disconnect();
         return $valid;
     }
 
